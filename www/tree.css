@@ -1,0 +1,39 @@
+/* TREE */
+.widgetHierarchy {
+        font-family: "Times", "Times New Roman", "serif";
+        font-weight: bold;
+        font-size: 18px;
+}
+
+.recBox {
+    fill: white;
+    stroke: black;
+    stroke-width: 2.5px;
+    opacity: 1;
+}
+
+.link {
+  fill: none;
+  stroke: blue;
+  stroke-width: 5px;
+}
+
+.nodeTitle {
+    font-family: "Times", "Times New Roman", "serif";
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.nodeText {
+    font-family: "Times", "Times New Roman", "serif";
+    font-weight: normal;
+    font-size: 10px;
+}
+
+.alternativeLink {
+    fill: none;
+    stroke: grey;
+    stroke-width: 0.5px;
+}
+  
+.node text { font: 12px sans-serif; }
