@@ -1,3 +1,16 @@
+##########################################
+##          Tierce Function             ##
+##########################################
+makeCSVFileInput <- function(varName, nCol) {
+  column(nCol,
+         column(4, checkboxInput('header', 'Header', TRUE) ),
+         column(4, radioButtons( 'sep', 'Separator', c(Comma = ',', Semicolon = ';',Tab = '\t'), ',', inline = FALSE) ),
+         column(4, radioButtons( 'quote', 'Quote', c(None = '', 'Double Quote' = '"', 'Single Quote' = "'"), selected = '', inline = FALSE) ),
+         fileInput(varName, label = HTML("<p>Choose <span style='color:red;'>file</span> to upload</p>"), 
+                   accept = c( 'text/csv', 'text/comma-separated-values', 'text/tab-separated-values', 'text/plain', '.csv', '.tsv' ))
+  )
+}
+
 chooserInput <- function(inputId, leftLabel, rightLabel, leftChoices, rightChoices,
                          size = 5, multiple = FALSE) {
   
