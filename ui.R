@@ -39,7 +39,7 @@ shinydashboard::dashboardPage(
                                                       rhandsontable::rHandsontableOutput("exampleSheetTree", height = '500px')
                                  ),
                                  shinydashboard::box( title = "AHP TREE initialisation",
-                                                      collapsible = TRUE, collapsed = FALSE, width = 6,
+                                                      collapsible = TRUE, collapsed = FALSE, width = 6, height = '500px',
                                                       status = "primary", background = NULL, solidHeader = TRUE,
                                                       HTML("<p>You should <span style='color:red;'>upload</span> a file containing the required data to build the AHP tree.</p>
                                                       <p>Please choose required option for your csv file</p>"),
@@ -47,14 +47,12 @@ shinydashboard::dashboardPage(
                                                       #, footer = "There is a footer now"
                                  )
                               ),
-                              uiOutput("ahpConfigurationBox"),
-                              uiOutput("uiValueBasedWhatever") 
+                              uiOutput("ahpConfigurationBox")
                                #                                
-                               #                                fluidRow(
-                               #                                  shinydashboard::box(
-                               #                                    checkboxInput("workingTree", "Check the box to start AHP process", value =  FALSE),
-                               #                                    
-                               #                                  ),
+                               # fluidRow(
+                               #        shinydashboard::box(
+                               #        checkboxInput("workingTree", "Check the box to start AHP process", value =  FALSE),
+                               #  ),
       ),
       shinydashboard::tabItem( tabName = "dimpref",
                                fluidRow(

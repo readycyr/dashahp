@@ -50,7 +50,8 @@ EigenVector_basedMeasurement <- function(col_A_Cj) {
 function(input, output) {
   # Global server variables
   reactValues <- reactiveValues()
-  treeMenuScript <- ""
+  preferenceSliderScriptName <- ""
+  valuesTree <- list()
   # Data to provide end-user an example
   reactValues$treeData <- data.frame(
     name = c( 'Root', 
@@ -90,126 +91,36 @@ function(input, output) {
     if ( is.null(reactValues$treeData) ) { 
       return(NULL) 
     }
-    rhandsontable(reactValues$treeData, useTypes = TRUE, readOnly = TRUE, width = '100%') %>%
+    rhandsontable(reactValues$treeData, useTypes = TRUE, readOnly = TRUE) %>%
       hot_table(highlightCol = TRUE, highlightRow = TRUE, contextMenu = FALSE, search = TRUE)
   })
   #####
-  # output BOX
+  # output BOX for the AHP configuration
   #####
   output$ahpConfigurationBox <- renderUI({
-    inFile <- input$fileTree
-    # input$fileTree will be NULL initially.
+    inFile <- input$fileTree # input$fileTree will be NULL initially.
     if ( is.null(inFile) ) {
       return(NULL)
-    } else { #if ( is.null( treeData ) ) {
-      reactValues$treeData <- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
-      ## Script
-      treeMenuScript <<-  paste0("generated_TreeManagement",".R")
-      if (!file.exists(treeMenuScript)) {
-        numberLevel <- names(table(reactValues$treeData$depth))
-        write(paste0('
-if (input$treeLevelChoice == ', 1,') {
-    namesLv1 <- as.character( reactValues$treeData[reactValues$treeData$depth == 1, c("name")] )
-    namesLv2 <- as.character( reactValues$treeData[reactValues$treeData$depth == 2, c("name")] )
-    namesLv3 <- as.character( reactValues$treeData[reactValues$treeData$depth == 3, c("name")] )
-    filename <- paste0("generated_",input$treeLevelChoice,".dynR")
-    output$thenames1 <- renderText({ as.character( namesLv1 ) })
-    output$thenames2 <- renderText({ as.character( namesLv2 ) })
-    output$thenames3 <- renderText({ as.character( namesLv3 ) })
-if (!file.exists(filename)) {
-    write(\'paste0( textOutput("thenames1"),\', file = filename)
-    write(\'textOutput("thenames2"), \', file = filename, append = TRUE)
-    write(\'textOutput("thenames3") )\', file = filename, append = TRUE)
-    succ <- source(filename, local = TRUE)
-    fconn <- file(filename)
-    writeLines(succ$value, con = filename)
-    close(fconn)
-}
-}'), file = treeMenuScript)
-        for (lv in 2:length(numberLevel) ) {
-          write( paste0('if (input$treeLevelChoice == ', lv,') {
-                filename <- paste0("generated_",input$treeLevelChoice,".dynR")
-                ln <- reactValues$treeData[reactValues$treeData$depth == ',lv,', c("name")]'), file = treeMenuScript, append = TRUE)
-          if ( lv > 2) {
-            write('if ( length(input$subsetTreeChoice) > 0 && input$subsetTreeChoice != 0) {
-                            ln <- na.omit( reactValues$treeData[reactValues$treeData$parent == input$subsetTreeChoice, c("name")] )
-                        }', file = treeMenuScript, append = TRUE)
-          }
-          write( paste0('if ( input$typeOfMeasurement == "Based preferences" ) {
-                    #if (!file.exists(filename)) {
-                            len <- length(ln)
-                            write( \'paste0( column(2,\', file = filename )
-                            for (ko in 1:(len - 1) ) { 
-                                for (kt in (ko + 1):len ) {
-                                    var <- paste0(ln[ko],"and",ln[kt])
-                                    if ( ko == len - 1 && kt == len) {
-                                        write( paste0(\'makeCriteriaListMenu("\',var,\'","Criteria importance", "\',ln[ko],\' over \',ln[kt],\'","\',ln[kt],\' over \', ln[ko],\'") ), #Close column\'), file = filename, append = TRUE)
-                                    } else {
-                                        write( paste0(\'makeCriteriaListMenu("\',var,\'","Criteria importance", "\',ln[ko],\' over \',ln[kt],\'","\',ln[kt],\' over \', ln[ko],\'"),\'), file = filename, append = TRUE)
-                                    }
-                                }
-                            }
-                        write(\'column(4,\', file = filename, append = TRUE )
-                        for (ko in 1:(len - 1) ) { 
-                            for (kt in (ko + 1):len ) {
-                                var <- paste0(ln[ko],"over",ln[kt])
-                                if ( ko == len - 1 && kt == len) {
-                                    write( paste0(\'makeSaatyListMenu("\',var,\'"," ") ) #Close column
-                                    ) # Close paste0\'), file = filename, append = TRUE)
-                                } else {
-                                    write( paste0(\'makeSaatyListMenu("\',var,\'"," "),\'), file = filename, append = TRUE)
-                                }
-                            }
-                        }
-                    succ <- source(filename, local = TRUE)
-                    fconn <- file(filename)
-                    writeLines(succ$value, con = filename)
-                    close(fconn)
-                    #}
-                } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                    if (file.exists(filename)) {
-                         unlink(filename, recursive = FALSE)
-                    }
-                }
-        }'), file = treeMenuScript, append = TRUE)
-        }
-        write( paste0('
-if (input$treeLevelChoice >= 1) {
-if ( input$typeOfMeasurement == "Based preferences" ) {
-            ## INPUT BOX
-            shinydashboard::box(width = 12,
-                checkboxInput("visibleMTX", "Check the box to see the comparison matrix", value =  FALSE),
-                includeHTML(filename),
-                column(6, uiOutput("matx"))
-            )
- } else if ( input$typeOfMeasurement == "Based measurements" ) {
-            ## INPUT BOX
-            shinydashboard::box(width = 12,
-                checkboxInput("visibleMTX", "Check the box to see the comparison matrix", value =  FALSE),
-                makeCSVFileInput("fileMeasurement", 12),
-                column(6, uiOutput("matx"))
-            )
- }
-}
-            '), file = treeMenuScript, append = TRUE)
-        
-      }
+    } else { 
+      succ <- source("scriptGeneratorAHP.R", local = TRUE)
+      return(## INPUT BOX
+        shinydashboard::box(title = "Edit Data File", 
+                            collapsible = FALSE, collapsed = FALSE, width = 12, 
+                            status = NULL, background = NULL, solidHeader = FALSE,
+                            column(6,
+                                   column(6, selectInput( inputId = "treeLevelChoice", label = "Choose level to compute pairwise comparison", choices = c('Select a level' = 0, names(table(reactValues$treeData$depth))), multiple = FALSE, selected = 0)),
+                                   column(6, uiOutput("uiSubsetTreeChoice"))
+                            ),
+                            column(6,
+                                   radioButtons( "typeOfMeasurement", 'Choose how to compute pairwise comparison', c("Based preferences", "Based measurements"), selected = NULL, inline = TRUE)
+                            ),
+                            uiOutput("uiValueBasedWhatever")
+        ) 
+      )
     }
-    ## INPUT BOX
-    shinydashboard::box(title = "Edit Data File", 
-                        collapsible = FALSE, collapsed = FALSE, width = 12, 
-                        status = NULL, background = NULL, solidHeader = FALSE,
-                        column(6,
-                              column(6, selectInput( inputId = "treeLevelChoice", label = "Choose level to compute pairwise comparison", choices = c('Select a level' = 0, names(table(reactValues$treeData$depth))), multiple = FALSE, selected = 0)),
-                              column(6, uiOutput("uiSubsetTreeChoice"))
-                        ),
-                        column(6,
-                               radioButtons( "typeOfMeasurement", 'Choose how to compute pairwise comparison', c("Based preferences", "Based measurements"), selected = NULL, inline = TRUE)
-                        )
-    )
   })
   #####
-  # output
+  # output for sliders or measurement sheet
   #####
   output$uiValueBasedWhatever <- renderUI({
     # Use the fact that the tree is loaded or not
@@ -217,36 +128,56 @@ if ( input$typeOfMeasurement == "Based preferences" ) {
       return(NULL)
     } else {
       if ( input$typeOfMeasurement == "Based preferences" ) {
-        source(treeMenuScript, local = TRUE)
+        succ <- source(preferenceSliderScriptName, local = TRUE)
+        if (input$treeLevelChoice == 0) { return(NULL) }
+        else if ( (input$treeLevelChoice == 1) ||
+                  (input$treeLevelChoice == 2) ||
+                  ( (input$treeLevelChoice > 2) && 
+                    (length(input$subsetTreeChoice)!=0) && 
+                    (input$subsetTreeChoice != 0))
+                ) {
+          return(## INPUT BOX
+            shinydashboard::box(width = 12,
+                                checkboxInput("visibleMTX", "Check the box to see the comparison matrix", value = FALSE),
+                                includeHTML(filename),
+                                column(6, uiOutput("matx"))
+            ))
+        } else {  return(NULL) }
       } else if ( input$typeOfMeasurement == "Based measurements" ) {
-        uiOutput("uiMeasurementSheet")
+        #uiOutput("uiMeasurementSheet")
+        return(## INPUT BOX
+          shinydashboard::box(width = 12,
+                              checkboxInput("visibleMTX", "Check the box to see the comparison matrix", value = FALSE),
+                              makeCSVFileInput("fileMeasurement", 12),
+                              column(6, uiOutput("matx"))
+          ))
       }
     }
   })
   #####
-  # output
+  # output sub menu to choose parent of the desired criteria 
   #####
   output$uiSubsetTreeChoice <- renderUI({
-    if ( length(input$treeLevelChoice) == 0 ) { return(NULL) }
-
-    numberLevel <- names(table(reactValues$treeData$depth))
-    if ( input$treeLevelChoice %in% 3:length(numberLevel) ) {
-      namesLv <- as.character(reactValues$treeData[reactValues$treeData$depth == (as.numeric(input$treeLevelChoice) - 1), c("name")])
+    numberLevel <- names( table(reactValues$treeData$depth) )
+    if ( (length(input$treeLevelChoice) != 0) && input$treeLevelChoice %in% 3:length(numberLevel) ) {
+      namesLv <- as.character( reactValues$treeData[reactValues$treeData$depth == (as.numeric(input$treeLevelChoice) - 1), c("name")] )
       if ( input$treeLevelChoice == length(numberLevel) ) {
-        ## INPUT
-        selectInput(inputId = "subsetTreeChoice", label = "Choose parent to compute pairwise comparison", choices = c("Select multiple parent" = 0, namesLv), multiple = TRUE, selected = 0)
+        return(## INPUT
+          selectInput(inputId = "subsetTreeChoice", label = "Choose parent to compute pairwise comparison", choices = c("Select multiple parent" = 0, namesLv), multiple = TRUE, selected = 0)
+        )
       } else {
-        ## INPUT
-        selectInput(inputId = "subsetTreeChoice", label = "Choose parent to compute pairwise comparison", choices = c("Select a parent" = 0, namesLv), multiple = FALSE, selected = 0)
+        return(## INPUT
+          selectInput(inputId = "subsetTreeChoice", label = "Choose parent to compute pairwise comparison", choices = c("Select a parent" = 0, namesLv), multiple = FALSE, selected = 0)
+        )
       }
-    }
+    } else { return(NULL) }
   })
   #####
   # output MATRIX
   #####
   output$matx <- renderUI({
     ## Script
-    matrixScript <- "script_matrices.R"
+    matrixScript <- "generated_matrices.R"
     if (!file.exists(matrixScript)) {
       numberLevel <- names(table(reactValues$treeData$depth))
       write(paste0('
@@ -254,17 +185,16 @@ if ( input$typeOfMeasurement == "Based preferences" ) {
                    matrixRepresentation <- c()
                    '), file = matrixScript)
             
-            for (lv in 2:length(numberLevel) ) {
+            for (lv in 2:(length(numberLevel)-1) ) {
                 write(paste0('
                              if ( input$treeLevelChoice == ',lv,' ) {
-                             #filename <- paste0("script_matrix_lv"',lv,'".R")
-                             if ( input$typeOfMeasurement == "Based preferences" ) {
-                             #if (!file.exists(filename)) {
-                             ln <- as.character( reactValues$treeData[reactValues$treeData$depth == ',lv,', c("name")] )'), file = matrixScript, append = TRUE)
+                             if ( input$typeOfMeasurement == "Based preferences" ) {'), file = matrixScript, append = TRUE)
                 if ( lv > 2) {
-                    write('if ( length(input$subsetTreeChoice) > 0 && input$subsetTreeChoice != 0) {
-                          ln <- na.omit( reactValues$treeData[reactValues$treeData$parent == input$subsetTreeChoice, c("name")] )
-                    }', file = matrixScript, append = TRUE)
+                  write(paste0('ln <- na.omit( reactValues$treeData[reactValues$treeData$parent %in% input$subsetTreeChoice, c("name")] )'),
+                        file = matrixScript, append = TRUE)
+                } else {
+                  write(paste0('ln <- as.character( reactValues$treeData[reactValues$treeData$depth == ',lv,', c("name")] )'),
+                        file = matrixScript, append = TRUE)
                 }
                 write( paste0('len <- length(ln)
                               intMatx <- matrix( c(1), nrow = len, ncol = len)
@@ -272,10 +202,10 @@ if ( input$typeOfMeasurement == "Based preferences" ) {
                               for (kt in (ko + 1):len) {
                               evalCr <- eval(parse(text = paste0("input$",ln[ko],"and",ln[kt], collapse = "")))
                               evalSaaty <- eval(parse(text = paste0("input$",ln[ko],"over",ln[kt], collapse = "")))
-                              if ( evalCr == paste0(ln[ko]," over ",ln[kt]) ) {
+                              if (paste0(ln[ko]," over ",ln[kt]) == evalCr) {
                               intMatx[ko, kt] <- as.numeric(evalSaaty) 
                               intMatx[kt, ko] <- 1/as.numeric(evalSaaty)
-                              } else if ( evalCr == paste0(ln[kt]," over ",ln[ko]) ) {
+                              } else if ( evalCr == paste0(ln[kt]," over ",ln[ko])) {
                               intMatx[ko, kt] <- 1/as.numeric(evalSaaty)
                               intMatx[kt, ko] <- as.numeric(evalSaaty)
                               }
@@ -293,31 +223,72 @@ if ( input$typeOfMeasurement == "Based preferences" ) {
                               matrixRepresentation <- c( matrixRepresentation, paste0(" \\\\\\\\ ") )
                               }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
-                              #}
                              } else if ( input$typeOfMeasurement == "Based measurements" ) {
                               values <- valuesTree[[paste0("level",lv)]] # careful subscript out of bounds
                              }
                              }
-                              '), file = matrixScript, append = TRUE) 
+                            '), file = matrixScript, append = TRUE) 
             }
-            
+          write(paste0('if ( input$treeLevelChoice == ',length(numberLevel),' ) {
+                          if ( input$typeOfMeasurement == "Based preferences" ) {
+                            ln <- as.character( reactValues$treeData[reactValues$treeData$depth == ',length(numberLevel),', c("name")] )
+                            #selectedParent <- na.omit( reactValues$treeData[reactValues$treeData$parent %in% input$subsetTreeChoice, c("name")] )
+                            len <- length(ln)
+                            intMatx <- matrix( c(1), nrow = len, ncol = len)
+                            for (ko in 1:(len - 1)) { 
+                              for (kt in (ko + 1):len) {
+                                evalCr <- eval(parse(text = paste0("input$",ln[ko],"and",ln[kt], collapse = "")))
+                                evalSaaty <- eval(parse(text = paste0("input$",ln[ko],"over",ln[kt], collapse = "")))
+                                if (paste0(ln[ko]," over ",ln[kt]) == evalCr) {
+                                  intMatx[ko, kt] <- as.numeric(evalSaaty) 
+                                  intMatx[kt, ko] <- 1/as.numeric(evalSaaty)
+                                } else if (paste0(ln[kt]," over ",ln[ko]) == evalCr) {
+                                  intMatx[ko, kt] <- 1/as.numeric(evalSaaty)
+                                  intMatx[kt, ko] <- as.numeric(evalSaaty)
+                                }
+                              }
+                            }
+                            matrixRepresentation <- c(matrixRepresentation, " $$ \\\\begin{matrix} ")
+                            matrixRepresentation <- c(matrixRepresentation, paste0(" & \\\\text{",ln[1:(len-1)],"}") )
+                            matrixRepresentation <- c(matrixRepresentation, paste0(" & \\\\text{",ln[len],"} \\\\\\\\ ") )
+                            for (ko in 1:len ) { 
+                              matrixRepresentation <- c(matrixRepresentation, paste0("\\\\text{",ln[ko],"}") )
+                              for (kt in 1:len) {
+                                if (ko == kt) { matrixRepresentation <- c(matrixRepresentation, paste0(" & ", as.numeric(1)) ) }
+                                else{matrixRepresentation <- c(matrixRepresentation, paste0(" & ", MASS::fractions(intMatx[ko, kt])) ) } 
+                              }
+                              matrixRepresentation <- c( matrixRepresentation, paste0(" \\\\\\\\ ") )
+                            }
+                              matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
+                          } else if ( input$typeOfMeasurement == "Based measurements" ) {
+                            values <- valuesTree[[paste0("level",lv)]] # careful subscript out of bounds
+                          }
+                        }
+                       '), file = matrixScript, append = TRUE)
             write(paste0('
                          vMat <- myEigenValue(intMatx)
                          vMatSum <- sum(vMat)
                          #ahppmr <- pmr::ahp(dset = intMatx, sim_size = 500)   
-                         ## INPUT BOX
-                         withMathJax( helpText("The pairwise comparison matrix:"), matrixRepresentation) 
                          '), file = matrixScript, append = TRUE)
         }
         ## Script use
-        if (input$visibleMTX && input$treeLevelChoice > 1) {
-          source(matrixScript, local = TRUE, verbose = FALSE)
-        } else{
-          return(NULL)
-        }
+        if (input$visibleMTX && (length(input$treeLevelChoice) != 0)) {
+          if ( (input$treeLevelChoice == 2) ||
+               ( (input$treeLevelChoice > 2) && 
+                 (length(input$subsetTreeChoice)!=0) && 
+                 (input$subsetTreeChoice != 0))
+          ) {
+            succ <- source(matrixScript, local = TRUE, verbose = FALSE)
+            return(## INPUT BOX
+                  withMathJax( helpText("The pairwise comparison matrix:"), 
+                               matrixRepresentation
+                  ) 
+            )
+          } else{  return(NULL) }
+        } else{  return(NULL) }
     })
   #####
-  # output SHEET
+  # output measurement SHEET
   #####
   output$uiMeasurementSheet <- renderUI({
     inFile <- input$fileMeasurement
