@@ -22,7 +22,7 @@ if ( !file.exists(preferenceSliderScriptName) ) {
                close(fconn)
                }
                }'), file = preferenceSliderScriptName)
-        for (lv in 2:length(numberLevel)-1) {
+        for (lv in 2:(length(numberLevel)-1)) {
           write( paste0('if (input$treeLevelChoice == ', lv,') {
                         filename <- paste0("generated_",input$treeLevelChoice,".dynR")
                         '), file = preferenceSliderScriptName, append = TRUE)
@@ -35,7 +35,7 @@ if ( !file.exists(preferenceSliderScriptName) ) {
                   file = preferenceSliderScriptName, append = TRUE)
           }
           write( paste0('if ( input$typeOfMeasurement == "Based preferences" ) {
-                        #if (!file.exists(filename)) {
+                        if (!file.exists(filename)) {
                         len <- length(ln)
                         write( \'paste0( column(2,\', file = filename )
                         for (ko in 1:(len - 1) ) { 
@@ -64,7 +64,7 @@ if ( !file.exists(preferenceSliderScriptName) ) {
                     fconn <- file(filename)
                     writeLines(succ$value, con = filename)
                     close(fconn)
-                    #}
+                    }
                 } else if ( input$typeOfMeasurement == "Based measurements" ) {
                     if (file.exists(filename)) {
                          unlink(filename, recursive = FALSE)
@@ -78,6 +78,7 @@ if ( !file.exists(preferenceSliderScriptName) ) {
         write(paste0('if ( input$treeLevelChoice == ',length(numberLevel),' ) {
                       filename <- paste0("generated_",input$treeLevelChoice,".dynR")
                       if ( input$typeOfMeasurement == "Based preferences" ) {
+                      if (!file.exists(filename)) {
                         ln <- as.character( reactValues$treeData[reactValues$treeData$depth == ',length(numberLevel),', c("name")] )
                         #selectedParent <- na.omit( reactValues$treeData[reactValues$treeData$parent %in% input$subsetTreeChoice, c("name")] )
                         len <- length(ln)
@@ -108,7 +109,8 @@ if ( !file.exists(preferenceSliderScriptName) ) {
                         fconn <- file(filename)
                         writeLines(succ$value, con = filename)
                         close(fconn)
-                          } else if ( input$typeOfMeasurement == "Based measurements" ) {
+                        }
+                      } else if ( input$typeOfMeasurement == "Based measurements" ) {
                               if (file.exists(filename)) {
                                  unlink(filename, recursive = FALSE)
                               }

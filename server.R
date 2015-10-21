@@ -202,7 +202,7 @@ function(input, output) {
                               for (kt in (ko + 1):len) {
                               evalCr <- eval(parse(text = paste0("input$",ln[ko],"and",ln[kt], collapse = "")))
                               evalSaaty <- eval(parse(text = paste0("input$",ln[ko],"over",ln[kt], collapse = "")))
-                              if (paste0(ln[ko]," over ",ln[kt]) == evalCr) {
+                              if (evalCr == paste0(ln[ko]," over ",ln[kt])) {
                               intMatx[ko, kt] <- as.numeric(evalSaaty) 
                               intMatx[kt, ko] <- 1/as.numeric(evalSaaty)
                               } else if ( evalCr == paste0(ln[kt]," over ",ln[ko])) {
