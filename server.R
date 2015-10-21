@@ -144,11 +144,11 @@ function(input, output) {
             ))
         } else {  return(NULL) }
       } else if ( input$typeOfMeasurement == "Based measurements" ) {
-        #uiOutput("uiMeasurementSheet")
         return(## INPUT BOX
           shinydashboard::box(width = 12,
                               checkboxInput("visibleMTX", "Check the box to see the comparison matrix", value = FALSE),
                               makeCSVFileInput("fileMeasurement", 12),
+                              column(6, uiOutput("uiMeasurementSheet")),
                               column(6, uiOutput("matx"))
           ))
       }
@@ -177,13 +177,13 @@ function(input, output) {
   #####
   output$matx <- renderUI({
     ## Script
-    matrixScript <- "generated_matrices.R"
+    matrixScript <- "generated_matrics.R"
     if (!file.exists(matrixScript)) {
       numberLevel <- names(table(reactValues$treeData$depth))
       write(paste0('
-                   intMatx <- NULL
-                   matrixRepresentation <- c()
-                   '), file = matrixScript)
+                  intMatx <- NULL
+                  matrixRepresentation <- c()
+                  vectorRepresentation <- c()'), file = matrixScript)
             
             for (lv in 2:(length(numberLevel)-1) ) {
                 write(paste0('
@@ -199,17 +199,18 @@ function(input, output) {
                 write( paste0('len <- length(ln)
                               intMatx <- matrix( c(1), nrow = len, ncol = len)
                               for (ko in 1:(len - 1)) { 
-                              for (kt in (ko + 1):len) {
-                              evalCr <- eval(parse(text = paste0("input$",ln[ko],"and",ln[kt], collapse = "")))
-                              evalSaaty <- eval(parse(text = paste0("input$",ln[ko],"over",ln[kt], collapse = "")))
-                              if (evalCr == paste0(ln[ko]," over ",ln[kt])) {
-                              intMatx[ko, kt] <- as.numeric(evalSaaty) 
-                              intMatx[kt, ko] <- 1/as.numeric(evalSaaty)
-                              } else if ( evalCr == paste0(ln[kt]," over ",ln[ko])) {
-                              intMatx[ko, kt] <- 1/as.numeric(evalSaaty)
-                              intMatx[kt, ko] <- as.numeric(evalSaaty)
-                              }
-                              }
+                                for (kt in (ko + 1):len) {
+                                  evalCr <- eval(parse(text = paste0("input$",ln[ko],"and",ln[kt], collapse = "")))
+                                  if (length(evalCr) == 0 ) { return(NULL) }
+                                  evalSaaty <- eval(parse(text = paste0("input$",ln[ko],"over",ln[kt], collapse = "")))
+                                  if (evalCr == paste0(ln[ko]," over ",ln[kt])) {
+                                    intMatx[ko, kt] <- as.numeric(evalSaaty) 
+                                    intMatx[kt, ko] <- 1/as.numeric(evalSaaty)
+                                  } else if ( evalCr == paste0(ln[kt]," over ",ln[ko])) {
+                                    intMatx[ko, kt] <- 1/as.numeric(evalSaaty)
+                                    intMatx[kt, ko] <- as.numeric(evalSaaty)
+                                  }
+                                }
                               }
                               matrixRepresentation <- c(matrixRepresentation, " $$ \\\\begin{matrix} ")
                               matrixRepresentation <- c(matrixRepresentation, paste0(" & \\\\text{",ln[1:(len-1)],"}") )
@@ -263,13 +264,24 @@ function(input, output) {
                           } else if ( input$typeOfMeasurement == "Based measurements" ) {
                             values <- valuesTree[[paste0("level",lv)]] # careful subscript out of bounds
                           }
-                        }
-                       '), file = matrixScript, append = TRUE)
+                        }'), file = matrixScript, append = TRUE)
             write(paste0('
-                         vMat <- myEigenValue(intMatx)
-                         vMatSum <- sum(vMat)
-                         #ahppmr <- pmr::ahp(dset = intMatx, sim_size = 500)   
-                         '), file = matrixScript, append = TRUE)
+                        vMat <- myEigenValue(intMatx)
+                        vMatSum <- sum(vMat)
+                        ahppmr <- pmr::ahp(dset = intMatx, sim_size = 500)
+                        vectorRepresentation <- c(vectorRepresentation, " $$ \\\\Longrightarrow ")
+                        vectorRepresentation <- c(vectorRepresentation, "  \\\\begin{bmatrix} ")
+                        vectorRepresentation <- c(vectorRepresentation, paste0( specify_digits((vMat/vMatSum), 3)," \\\\\\\\ "))
+                        vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\hline", sum(vMat/vMatSum)," \\\\\\\\ ")) 
+                        vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} or \\\\begin{bmatrix} ")
+                        vectorRepresentation <- c(vectorRepresentation, paste0( specify_digits((ahppmr$weighting), 3)," \\\\\\\\ "))
+                        vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\hline", sum(ahppmr$weighting)," \\\\\\\\ ")) 
+                        vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} \\\\\\\\ $$ ")
+                        vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\begin{array}{c} 
+                                \\\\text{Saaty\'s inconsistency} = ", specify_digits((ahppmr$Saaty), 3)," \\\\\\\\ ",
+                                "\\\\text{Koczkodaj\'s inconsistency} = ", specify_digits((ahppmr$Koczkodaj), 3),
+                                " \\\\end{array}")
+                        )'), file = matrixScript, append = TRUE)
         }
         ## Script use
         if (input$visibleMTX && (length(input$treeLevelChoice) != 0)) {
@@ -278,11 +290,12 @@ function(input, output) {
                  (length(input$subsetTreeChoice)!=0) && 
                  (input$subsetTreeChoice != 0))
           ) {
-            succ <- source(matrixScript, local = TRUE, verbose = FALSE)
+            if ( !exists("matrixRepresentation") ) {
+              succ <- source(matrixScript, local = TRUE, verbose = FALSE)
+            }
             return(## INPUT BOX
                   withMathJax( helpText("The pairwise comparison matrix:"), 
-                               matrixRepresentation
-                  ) 
+                               matrixRepresentation, vectorRepresentation)
             )
           } else{  return(NULL) }
         } else{  return(NULL) }
@@ -290,30 +303,29 @@ function(input, output) {
   #####
   # output measurement SHEET
   #####
+  fileForMeasure <- NULL
+  
   output$uiMeasurementSheet <- renderUI({
     inFile <- input$fileMeasurement
     # input$fileMeasure will be NULL initially.
     if ( is.null(inFile) ) {
       return(NULL)
-    } else if ( is.null(statsCKAN) ) {
+    } else if ( is.null(fileForMeasure) ) {
       # After the user selects and uploads a file, it will be a data frame with \'name\', \'size\', \'type\', and \'datapath\' columns.
       # The \'datapath\' column will contain the local filenames where the data can be found.
-      statsCKAN <<- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
-    } else {
+      fileForMeasure <<- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
     }
     ## INPUT 
-    rhandsontable::rHandsontableOutput("hotMeasurement", height = "400px")
+    rhandsontable::rHandsontableOutput("measurementSheet", height = "400px")
   })
-  output$hotMeasurement <- rhandsontable::renderRHandsontable({
+  output$measurementSheet <- rhandsontable::renderRHandsontable({
     require(rhandsontable)
-    if (!is.null(input$hotMeasurement)) {
-      dataT <- hot_to_r( input$hotMeasurement )
+    if (!is.null(input$measurementSheet)) {
+      dataT <- hot_to_r( input$measurementSheet )
     } else {
-      if ( length(input$subsetTreeChoice) == 1 && input$subsetTreeChoice != 0) { 
-        namesLv <- theTree[theTree$parent == input$subsetTreeChoice, c("name")]
-        dataT <- statsCKAN[, as.character( na.omit( namesLv ))]
-      } else if ( length(input$subsetTreeChoice) > 1) { 
-        dataT <- statsCKAN[, input$subsetTreeChoice]
+      if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
+        #if ( length() ) {}
+        dataT <- fileForMeasure[, input$subsetTreeChoice]
       } else {
         return(NULL)
       }
