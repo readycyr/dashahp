@@ -225,7 +225,7 @@ function(input, output) {
                               }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                              } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                              values <- valuesTree[[paste0("level",lv)]] # careful subscript out of bounds
+                              values <- valuesTree[[paste0("saveDataLevel",lv)]] # careful subscript out of bounds
                              }
                              }
                             '), file = matrixScript, append = TRUE) 
@@ -262,7 +262,7 @@ function(input, output) {
                             }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                           } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                            values <- valuesTree[[paste0("level",lv)]] # careful subscript out of bounds
+                            values <- valuesTree[[paste0("saveDataLevel",lv)]] # careful subscript out of bounds
                           }
                         }'), file = matrixScript, append = TRUE)
             write(paste0('
@@ -303,17 +303,31 @@ function(input, output) {
   #####
   # output measurement SHEET
   #####
-  fileForMeasure <- NULL
-  
   output$uiMeasurementSheet <- renderUI({
     inFile <- input$fileMeasurement
     # input$fileMeasure will be NULL initially.
     if ( is.null(inFile) ) {
-      return(NULL)
-    } else if ( is.null(fileForMeasure) ) {
+      if ( input$treeLevelChoice > 2) {
+        if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
+          colOfNames <- na.omit( reactValues$treeData[reactValues$treeData$parent %in% input$subsetTreeChoice, c("name")] )
+          gen <- paste0(input$subsetTreeChoice," = rep(NA, length(colOfNames))", collapse = " , ")        
+          valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- eval(parse(text=paste0("data.frame( Au_vu_de = colOfNames,", gen, ", stringsAsFactors = FALSE)")))
+        } else {
+          return(NULL)
+        }
+      } else if ( input$treeLevelChoice == 2) {
+        colOfNames <- as.character( reactValues$treeData[reactValues$treeData$depth == input$treeLevelChoice, c("name")] )
+        valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- data.frame( 
+          Au_vu_de = colOfNames,
+          root = rep(NA, length(colOfNames)),
+          stringsAsFactors = FALSE)
+      } else {
+        return(NULL)
+      }
+    } else if ( is.null( valuesTree[[paste0("file_level",input$treeLevelChoice)]] ) ) {
       # After the user selects and uploads a file, it will be a data frame with \'name\', \'size\', \'type\', and \'datapath\' columns.
       # The \'datapath\' column will contain the local filenames where the data can be found.
-      fileForMeasure <<- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
+      valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
     }
     ## INPUT 
     rhandsontable::rHandsontableOutput("measurementSheet", height = "400px")
@@ -323,15 +337,24 @@ function(input, output) {
     if (!is.null(input$measurementSheet)) {
       dataT <- hot_to_r( input$measurementSheet )
     } else {
-      if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
-        #if ( length() ) {}
-        dataT <- fileForMeasure[, input$subsetTreeChoice]
-      } else {
-        return(NULL)
+      if ( input$treeLevelChoice > 2) {
+        if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
+          fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
+          if ( length(input$subsetTreeChoice) == 1)  {
+            dataT <- fileForMeasure#[, as.character(input$subsetTreeChoice)]
+          } else {
+            dataT <- fileForMeasure#[, as.character(input$subsetTreeChoice)]
+          }
+        } else {
+          return(NULL)
+        }
+      } else if ( input$treeLevelChoice == 2) {
+        fileForMeasure <- valuesTree[[paste0("file_level", input$treeLevelChoice)]]
+        dataT <- fileForMeasure
       }
     }
-    valuesTree[[paste0("level",input$treeLevelChoice)]] <<- dataT
-    rhandsontable(dataT, useTypes = TRUE, readOnly = FALSE) # %>% hot_table(highlightCol = TRUE, highlightRow = TRUE) %>%
+    valuesTree[[paste0("saveDataLevel",input$treeLevelChoice)]] <<- dataT
+    rhandsontable(dataT, rowHeaders = NULL, useTypes = TRUE, readOnly = FALSE) # %>% hot_table(highlightCol = TRUE, highlightRow = TRUE) %>%
     #hot_col("factor_allow", allowInvalid = TRUE)
   })
 }
