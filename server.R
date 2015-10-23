@@ -262,17 +262,18 @@ function(input, output) {
                             }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                           } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                            values <- valuesTree[[paste0("saveDataLevel",lv)]] # careful subscript out of bounds
+                            values <- valuesTree[[paste0("saveDataLevel",lv)]] # careful, so far subscript out of bounds
                           }
                         }'), file = matrixScript, append = TRUE)
             write(paste0('
                         vMat <- myEigenValue(intMatx)
                         vMatSum <- sum(vMat)
-                        ahppmr <- pmr::ahp(dset = intMatx, sim_size = 500)
                         vectorRepresentation <- c(vectorRepresentation, " $$ \\\\Longrightarrow ")
                         vectorRepresentation <- c(vectorRepresentation, "  \\\\begin{bmatrix} ")
                         vectorRepresentation <- c(vectorRepresentation, paste0( specify_digits((vMat/vMatSum), 3)," \\\\\\\\ "))
                         vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\hline", sum(vMat/vMatSum)," \\\\\\\\ ")) 
+                      if( dim(intMatx)[1] > 2 ) {
+                        ahppmr <- pmr::ahp(dset = intMatx, sim_size = 500)
                         vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} or \\\\begin{bmatrix} ")
                         vectorRepresentation <- c(vectorRepresentation, paste0( specify_digits((ahppmr$weighting), 3)," \\\\\\\\ "))
                         vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\hline", sum(ahppmr$weighting)," \\\\\\\\ ")) 
@@ -280,8 +281,10 @@ function(input, output) {
                         vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\begin{array}{c} 
                                 \\\\text{Saaty\'s inconsistency} = ", specify_digits((ahppmr$Saaty), 3)," \\\\\\\\ ",
                                 "\\\\text{Koczkodaj\'s inconsistency} = ", specify_digits((ahppmr$Koczkodaj), 3),
-                                " \\\\end{array}")
-                        )'), file = matrixScript, append = TRUE)
+                                " \\\\end{array}"))
+                      } else {
+                        vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} \\\\\\\\ $$ ")
+                      }'), file = matrixScript, append = TRUE)
         }
         ## Script use
         if (input$visibleMTX && (length(input$treeLevelChoice) != 0)) {

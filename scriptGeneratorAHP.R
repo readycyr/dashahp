@@ -35,7 +35,7 @@ if ( !file.exists(preferenceSliderScriptName) ) {
                   file = preferenceSliderScriptName, append = TRUE)
           }
           write( paste0('if ( input$typeOfMeasurement == "Based preferences" ) {
-                        if (!file.exists(filename)) {
+                        #if (!file.exists(filename)) {
                         len <- length(ln)
                         write( \'paste0( column(2,\', file = filename )
                         for (ko in 1:(len - 1) ) { 
@@ -64,7 +64,7 @@ if ( !file.exists(preferenceSliderScriptName) ) {
                     fconn <- file(filename)
                     writeLines(succ$value, con = filename)
                     close(fconn)
-                    }
+                    #}
                 } else if ( input$typeOfMeasurement == "Based measurements" ) {
                     if (file.exists(filename)) {
                          unlink(filename, recursive = FALSE)
