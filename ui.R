@@ -16,7 +16,7 @@ shinydashboard::dashboardPage(
       shinydashboard::menuItem( "Site performance", tabName = "siteperf", icon = icon("dashboard") ),
       shinydashboard::menuItem( "Dimension preferences", tabName = "dimpref", icon = icon("th") ),
       shinydashboard::menuItem( "User guide", tabName = "userg", icon = icon("file") ),
-      sliderInput("mood", "What is your moood", min = 1,max = 100, value = 50, step = 1, ticks = TRUE)
+      sliderInput("mood", "What's your confidence with AHP", min = 1,max = 100, value = 50, step = 1, ticks = TRUE)
     )
   ),
   ## The body content
@@ -47,12 +47,10 @@ shinydashboard::dashboardPage(
                                                       #, footer = "There is a footer now"
                                  )
                               ),
-                              uiOutput("ahpConfigurationBox")
-                               #                                
-                               # fluidRow(
-                               #        shinydashboard::box(
-                               #        checkboxInput("workingTree", "Check the box to start AHP process", value =  FALSE),
-                               #  ),
+                              uiOutput("ahpConfigurationBox"),
+                              fluidRow(
+                                shinydashboard::box()
+                              )
       ),
       shinydashboard::tabItem( tabName = "dimpref",
                                fluidRow(
