@@ -8,6 +8,7 @@ makeSaatyListMenu <- function(id, alabel) {
   sliderInput( id, alabel, min = 1,max = 9, value = 5, step = 2, ticks = FALSE, post = "x more important")
 }
 myEigenValue <- function(matx) {
+
   sqOne <- matx %*% matx
   sqTwo <- sqOne %*% sqOne
   sqMatx <- sqTwo %*% sqTwo
@@ -22,7 +23,7 @@ myEigenValue <- function(matx) {
 specify_digits <- function(x, k) {
   format(round(x, k), nsmall = k)
 }
-EigenVector_basedMeasurement <- function(col_A_Cj) {
+eigenVector_basedMeasurement <- function(col_A_Cj) {
   m <- length(col_A_Cj)
   PcAcj <- matrix(c(0), ncol = m, nrow = m);
   # Compute the upper half Pc matrix based on measurement
@@ -38,9 +39,15 @@ EigenVector_basedMeasurement <- function(col_A_Cj) {
   }
   PcAcj[ is.na(PcAcj) ] <- 0
   PcAcj[ is.infinite(PcAcj) ] <- 0
-  eigenVector <- pmr::ahp(dset = PcAcj, sim_size = 500)
-  eigenVector
-  #    mThree <- EigenVector_basedMeasurement(col_qu)
+
+  ret <- NULL
+  if( dim(PcAcj)[1] > 2 ) {
+    ret <- pmr::ahp(dset = PcAcj, sim_size = 500)
+  } else {
+    ret <- myEigenValue(PcAcj)
+  }
+  ret
+  #    mThree <- eigenVector_basedMeasurement(col_qu)
   #    tt <- as.matrix(read.table("./datasets/qu_extras_EVbasedMeasurement.txt", sep = ","))
   #    for ( k in 1:126) { print( all.equal(as.numeric(tt[k,]), mThree[k,]) ) }
 }
@@ -51,6 +58,8 @@ function(input, output) {
   # Global server variables
   reactValues <- reactiveValues()
   preferenceSliderScriptName <- ""
+  hasDataFile <- NULL
+  lastUploadedFile <- c()
   valuesTree <- list()
   # Data to provide end-user an example
   reactValues$treeData <- data.frame(
@@ -182,6 +191,7 @@ function(input, output) {
       numberLevel <- names(table(reactValues$treeData$depth))
       write(paste0('
                   intMatx <- NULL
+                  eigenMatrix <- NULL
                   matrixRepresentation <- c()
                   vectorRepresentation <- c()'), file = matrixScript)
             
@@ -205,9 +215,9 @@ function(input, output) {
                                   evalSaaty <- eval(parse(text = paste0("input$",ln[ko],"over",ln[kt], collapse = "")))
                                   if (evalCr == paste0(ln[ko]," over ",ln[kt])) {
                                     intMatx[ko, kt] <- as.numeric(evalSaaty) 
-                                    intMatx[kt, ko] <- 1/as.numeric(evalSaaty)
+                                    intMatx[kt, ko] <- (1/as.numeric(evalSaaty))
                                   } else if ( evalCr == paste0(ln[kt]," over ",ln[ko])) {
-                                    intMatx[ko, kt] <- 1/as.numeric(evalSaaty)
+                                    intMatx[ko, kt] <- (1/as.numeric(evalSaaty))
                                     intMatx[kt, ko] <- as.numeric(evalSaaty)
                                   }
                                 }
@@ -225,7 +235,21 @@ function(input, output) {
                               }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                              } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                              values <- valuesTree[[paste0("saveDataLevel",lv)]] # careful subscript out of bounds
+                                fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
+                                eigenMatrix <- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                if ( input$treeLevelChoice > 2) {
+                                  if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
+                                    res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, as.character(input$subsetTreeChoice)]))
+                                    eigenMatrix <- eval(parse(text= paste0("cbind(eigenMatrix,",input$subsetTreeChoice," = ",res$weighting,")") ))
+                                  } else {
+                                    return(NULL)
+                                  }
+                                } else if ( input$treeLevelChoice == 2) {
+                                  res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, c("root")]))
+                                  eigenMatrix <- cbind(eigenMatrix, root = res$weighting)
+                                } else {
+                                  return(NULL)
+                                }
                              }
                              }
                             '), file = matrixScript, append = TRUE) 
@@ -242,9 +266,9 @@ function(input, output) {
                                 evalSaaty <- eval(parse(text = paste0("input$",ln[ko],"over",ln[kt], collapse = "")))
                                 if (paste0(ln[ko]," over ",ln[kt]) == evalCr) {
                                   intMatx[ko, kt] <- as.numeric(evalSaaty) 
-                                  intMatx[kt, ko] <- 1/as.numeric(evalSaaty)
+                                  intMatx[kt, ko] <- (1/as.numeric(evalSaaty))
                                 } else if (paste0(ln[kt]," over ",ln[ko]) == evalCr) {
-                                  intMatx[ko, kt] <- 1/as.numeric(evalSaaty)
+                                  intMatx[ko, kt] <- (1/as.numeric(evalSaaty))
                                   intMatx[kt, ko] <- as.numeric(evalSaaty)
                                 }
                               }
@@ -262,10 +286,20 @@ function(input, output) {
                             }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                           } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                            values <- valuesTree[[paste0("saveDataLevel",lv)]] # careful, so far subscript out of bounds
+                                fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
+                                eigenMatrix <- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
+                                  for(nm in input$subsetTreeChoice) {
+                                    res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, c(nm)]))
+                                    eigenMatrix <- eval(parse(text= paste0("cbind(eigenMatrix,",nm," = ",res$weighting,")") ))
+                                  }
+                                } else {
+                                  return(NULL)
+                                }
                           }
                         }'), file = matrixScript, append = TRUE)
             write(paste0('
+                    if ( input$typeOfMeasurement == "Based preferences" ) {
                         vMat <- myEigenValue(intMatx)
                         vMatSum <- sum(vMat)
                         vectorRepresentation <- c(vectorRepresentation, " $$ \\\\Longrightarrow ")
@@ -284,7 +318,12 @@ function(input, output) {
                                 " \\\\end{array}"))
                       } else {
                         vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} \\\\\\\\ $$ ")
-                      }'), file = matrixScript, append = TRUE)
+                      }
+                    } else if ( input$typeOfMeasurement == "Based measurements" ) {
+# XXX TODO XXX
+print(eigenMatrix)
+
+                    }'), file = matrixScript, append = TRUE)
         }
         ## Script use
         if (input$visibleMTX && (length(input$treeLevelChoice) != 0)) {
@@ -307,39 +346,42 @@ function(input, output) {
   # output measurement SHEET
   #####
   output$uiMeasurementSheet <- renderUI({
-    inFile <- input$fileMeasurement
     # input$fileMeasure will be NULL initially.
-    if ( is.null(inFile) ) {
-      if ( input$treeLevelChoice > 2) {
-        if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
-          nametab <- table(reactValues$treeData$depth)
-          numberLevel <- names( nametab )
-          colOfNames <- na.omit( reactValues$treeData[reactValues$treeData$parent %in% input$subsetTreeChoice, c("name")] )
-          gen <- paste0(input$subsetTreeChoice," = rep(1, length(colOfNames))", collapse = " , ")
-          if(input$treeLevelChoice == length(numberLevel)) {
-            nb <- nametab[[numberLevel[length(numberLevel)]]]
-            gen <- paste0(input$subsetTreeChoice," = rep(1, as.numeric(nb))", collapse = " , ")
-          }
-          valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- eval(parse(text=paste0("data.frame( Au_vu_de = colOfNames,", gen, ", stringsAsFactors = FALSE)")))
-        } else {
-          return(NULL)
-        }
-      } else if ( input$treeLevelChoice == 2) {
-        colOfNames <- as.character( reactValues$treeData[reactValues$treeData$depth == input$treeLevelChoice, c("name")] )
-        valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- data.frame( 
-          Au_vu_de = colOfNames,
-          root = rep(1, length(colOfNames)),
-          stringsAsFactors = FALSE)
-      } else {
-        return(NULL)
-      }
-    } else { # if ( is.null( valuesTree[[paste0("file_level",input$treeLevelChoice)]] ) )
-      if ( input$treeLevelChoice > 1) {
+    inFile <- input$fileMeasurement
+    if ( identical(TRUE,hasDataFile[input$treeLevelChoice]) ) {
       # After the user selects and uploads a file, it will be a data frame with \'name\', \'size\', \'type\', and \'datapath\' columns.
       # The \'datapath\' column will contain the local filenames where the data can be found.
       valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
+    } else {
+      if ( is.null(inFile) || (inFile$datapath %in% lastUploadedFile) ) { 
+        if ( input$treeLevelChoice > 2) { # XXX TODO XXX one or several files for an intermediate level
+          if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
+            nametab <- table(reactValues$treeData$depth)
+            numberLevel <- names( nametab )
+            colOfNames <- na.omit( reactValues$treeData[reactValues$treeData$parent %in% input$subsetTreeChoice, c("name")] )
+            gen <- paste0(input$subsetTreeChoice," = rep(1, length(colOfNames))", collapse = " , ")
+            if(input$treeLevelChoice == length(numberLevel)) {
+              colOfNames <- na.omit( reactValues$treeData[reactValues$treeData$depth == length(numberLevel), c("name")] )
+              nb <- nametab[[numberLevel[length(numberLevel)]]]
+              gen <- paste0(input$subsetTreeChoice," = rep(1, as.numeric(nb))", collapse = " , ")
+            }
+            valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- eval(parse(text=paste0("data.frame( Au_vu_de = colOfNames,", gen, ", stringsAsFactors = FALSE)")))
+          } else {
+            return(NULL)
+          }
+        } else if ( input$treeLevelChoice == 2) {
+          colOfNames <- as.character( reactValues$treeData[reactValues$treeData$depth == input$treeLevelChoice, c("name")] )
+          valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- data.frame( 
+            Au_vu_de = colOfNames,
+            root = rep(1, length(colOfNames)),
+            stringsAsFactors = FALSE)
+        } else {
+          return(NULL)
+        }
       } else {
-        return(NULL)
+        hasDataFile[input$treeLevelChoice] <- TRUE
+        lastUploadedFile <- c(lastUploadedFile, inFile$datapath)
+        valuesTree[[paste0("file_level",input$treeLevelChoice)]] <<- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
       }
     }
     ## INPUT 
@@ -354,11 +396,7 @@ function(input, output) {
       if ( input$treeLevelChoice > 2) {
         if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
           fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
-          if ( length(input$subsetTreeChoice) == 1 )  {
-            dataT <- fileForMeasure#[, as.character(input$subsetTreeChoice)]
-          } else {
-            dataT <- fileForMeasure[, c("Au_vu_de",as.character(input$subsetTreeChoice))]
-          }
+          dataT <- fileForMeasure[, c("Au_vu_de",as.character(input$subsetTreeChoice))]
         } else {
           return(NULL)
         }
@@ -367,7 +405,6 @@ function(input, output) {
         dataT <- fileForMeasure
       }
 #    }
-    valuesTree[[paste0("saveDataLevel",input$treeLevelChoice)]] <<- dataT
     rhandsontable(dataT, rowHeaders = NULL, useTypes = TRUE, readOnly = FALSE) # %>% hot_table(highlightCol = TRUE, highlightRow = TRUE) %>%
     #hot_col("factor_allow", allowInvalid = TRUE)
   })

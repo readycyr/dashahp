@@ -3,6 +3,7 @@ reactValues$treeData <- read.csv( inFile$datapath, header = input$header, sep = 
 preferenceSliderScriptName <<-  paste0("generated_basedPreferenceSlider",".R")
 if ( !file.exists(preferenceSliderScriptName) ) {
   numberLevel <- names( table(reactValues$treeData$depth) )
+  hasDataFile <<- rep(FALSE,length(numberLevel))
   write(paste0('
                if (input$treeLevelChoice == ', 1,') {
                namesLv1 <- as.character( reactValues$treeData[reactValues$treeData$depth == 1, c("name")] )
