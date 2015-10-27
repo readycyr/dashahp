@@ -39,18 +39,19 @@ eigenVector_basedMeasurement <- function(col_A_Cj) {
   }
   PcAcj[ is.na(PcAcj) ] <- 0
   PcAcj[ is.infinite(PcAcj) ] <- 0
-
-  ret <- NULL
-  if( dim(PcAcj)[1] > 2 ) {
-    ret <- pmr::ahp(dset = PcAcj, sim_size = 500)
-  } else {
-    ret <- myEigenValue(PcAcj)
-  }
-  ret
+  pmr::ahp(dset = PcAcj, sim_size = 500)
   #    mThree <- eigenVector_basedMeasurement(col_qu)
   #    tt <- as.matrix(read.table("./datasets/qu_extras_EVbasedMeasurement.txt", sep = ","))
   #    for ( k in 1:126) { print( all.equal(as.numeric(tt[k,]), mThree[k,]) ) }
 }
+
+topsis_ranking <- function(col_A_Cj) {
+  nis <- min(col_A_Cj)
+  pis <- max(col_A_Cj)
+  ####
+}
+#colMax <- function(data) sapply(data, max, na.rm = TRUE)
+#colMin <- function(data) sapply(data, min, na.rm = TRUE)
 ##########################################
 ##                SERVER                ##
 ##########################################
@@ -61,6 +62,7 @@ function(input, output) {
   hasDataFile <- NULL
   lastUploadedFile <- c()
   valuesTree <- list()
+  eigenMatrix <- NULL
   # Data to provide end-user an example
   reactValues$treeData <- data.frame(
     name = c( 'Root', 
@@ -191,7 +193,6 @@ function(input, output) {
       numberLevel <- names(table(reactValues$treeData$depth))
       write(paste0('
                   intMatx <- NULL
-                  eigenMatrix <- NULL
                   matrixRepresentation <- c()
                   vectorRepresentation <- c()'), file = matrixScript)
             
@@ -236,7 +237,8 @@ function(input, output) {
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                              } else if ( input$typeOfMeasurement == "Based measurements" ) {
                                 fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
-                                eigenMatrix <- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                ## eigenMatrix <- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                eigenMatrix <- data.frame()
                                 if ( input$treeLevelChoice > 2) {
                                   if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
                                     res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, as.character(input$subsetTreeChoice)]))
@@ -287,7 +289,8 @@ function(input, output) {
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                           } else if ( input$typeOfMeasurement == "Based measurements" ) {
                                 fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
-                                eigenMatrix <- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                ## data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                eigenMatrix <- data.frame() 
                                 if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
                                   for(nm in input$subsetTreeChoice) {
                                     res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, c(nm)]))
@@ -320,9 +323,8 @@ function(input, output) {
                         vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} \\\\\\\\ $$ ")
                       }
                     } else if ( input$typeOfMeasurement == "Based measurements" ) {
-# XXX TODO XXX
-print(eigenMatrix)
-
+                    # XXX TODO XXX
+                    #print(eigenMatrix)
                     }'), file = matrixScript, append = TRUE)
         }
         ## Script use
@@ -407,5 +409,22 @@ print(eigenMatrix)
 #    }
     rhandsontable(dataT, rowHeaders = NULL, useTypes = TRUE, readOnly = FALSE) # %>% hot_table(highlightCol = TRUE, highlightRow = TRUE) %>%
     #hot_col("factor_allow", allowInvalid = TRUE)
+  })
+  
+  #####
+  # output
+  #####
+  output$plothist <- renderPlot({
+    if( !is.null(eigenMatrix) )  {
+      altRanked <- topsis::topsis(decision = as.matrix(eigenMatrix), weights = NULL, impacts = NULL)
+      print(altRanked$score)
+      print(altRanked$rank)
+      criteria <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
+      
+      barplot( altRanked$score, main = "Site Distribution", horiz = FALSE, 
+               names.arg = as.character(criteria[, c("Au_vu_de")]), cex.names = 1, axis.lty = 1, las = 2
+      )
+      #lines(thesiteX, c(0, thesiteY), col = "red",lwd = 5)      
+    }
   })
 }
