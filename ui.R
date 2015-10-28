@@ -50,7 +50,7 @@ shinydashboard::dashboardPage(
                               uiOutput("ahpConfigurationBox"),
                               fluidRow(
                                 shinydashboard::box( title = "Final Assessment & Ranking", 
-                                                     collapsible = TRUE, collapsed = FALSE, width = 6, height = '500px',
+                                                     collapsible = TRUE, collapsed = FALSE, width = 12, height = '500px',
                                                      background = "black", solidHeader = TRUE,
                                                      plotOutput("plothist", height = '320px')
                                 )
