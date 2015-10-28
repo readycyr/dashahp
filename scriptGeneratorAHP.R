@@ -1,4 +1,6 @@
-reactValues$treeData <- read.csv( inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
+atree <- read.csv(inFile$datapath, header = input$header, sep = input$sep, quote = input$quote)
+reactValues$treeData <- cbind( atree, data.frame(score = rep(0, nrow(atree))))
+
 ## Script
 preferenceSliderScriptName <<-  paste0("generated_basedPreferenceSlider",".R")
 if ( !file.exists(preferenceSliderScriptName) ) {
