@@ -23,7 +23,7 @@ myEigenValue <- function(matx) {
 specify_digits <- function(x, k) {
   format(round(x, k), nsmall = k)
 }
-eigenVector_basedMeasurement <- function(col_A_Cj) {
+matrix_basedMeasurement <- function(col_A_Cj) {
   m <- length(col_A_Cj)
   PcAcj <- matrix(c(0), ncol = m, nrow = m);
   # Compute the upper half Pc matrix based on measurement
@@ -39,7 +39,7 @@ eigenVector_basedMeasurement <- function(col_A_Cj) {
   }
   PcAcj[ is.na(PcAcj) ] <- 0
   PcAcj[ is.infinite(PcAcj) ] <- 0
-  pmr::ahp(dset = PcAcj, sim_size = 500)
+  PcAcj
   #    mThree <- eigenVector_basedMeasurement(col_qu)
   #    tt <- as.matrix(read.table("./datasets/qu_extras_EVbasedMeasurement.txt", sep = ","))
   #    for ( k in 1:126) { print( all.equal(as.numeric(tt[k,]), mThree[k,]) ) }
@@ -62,7 +62,7 @@ function(input, output) {
   hasDataFile <- NULL
   lastUploadedFile <- c()
   valuesTree <- list()
-  eigenMatrix <- NULL
+  eigenFrame <- NULL
   # Data to provide end-user an example
   reactValues$treeData <- data.frame(
     name = c( 'Root', 
@@ -237,18 +237,23 @@ function(input, output) {
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                              } else if ( input$typeOfMeasurement == "Based measurements" ) {
                                 fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
-                                ## eigenMatrix <- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
-                                eigenMatrix <- data.frame()
+                                eigenFrame <<- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
                                 if ( input$treeLevelChoice > 2) {
                                   if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
-                                    res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, as.character(input$subsetTreeChoice)]))
-                                    eigenMatrix <- eval(parse(text= paste0("cbind(eigenMatrix,",input$subsetTreeChoice," = ",res$weighting,")") ))
+                                    if(dim(fileForMeasure)[1] > 2) {
+                                      res <- pmr::ahp(dset = matrix_basedMeasurement(as.numeric(fileForMeasure[, as.character(input$subsetTreeChoice)])), 
+                                      sim_size = 500)
+                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",input$subsetTreeChoice," = ",res$weighting,")") ))
+                                    } else {
+                                      res <- myEigenValue(matrix_basedMeasurement(as.numeric(fileForMeasure[,as.character(input$subsetTreeChoice)])))
+                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",input$subsetTreeChoice," = ",res,")") ))
+                                    }
                                   } else {
                                     return(NULL)
                                   }
                                 } else if ( input$treeLevelChoice == 2) {
-                                  res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, c("root")]))
-                                  eigenMatrix <- cbind(eigenMatrix, root = res$weighting)
+                                  res <- pmr::ahp(dset = matrix_basedMeasurement(as.numeric(fileForMeasure[, c("root")])), sim_size = 500)
+                                  eigenFrame <- cbind(eigenFrame, root = res$weighting)
                                 } else {
                                   return(NULL)
                                 }
@@ -289,12 +294,16 @@ function(input, output) {
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                           } else if ( input$typeOfMeasurement == "Based measurements" ) {
                                 fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
-                                ## data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
-                                eigenMatrix <- data.frame() 
+                                eigenFrame <<- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
                                 if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
                                   for(nm in input$subsetTreeChoice) {
-                                    res <- eigenVector_basedMeasurement(as.numeric(fileForMeasure[, c(nm)]))
-                                    eigenMatrix <- eval(parse(text= paste0("cbind(eigenMatrix,",nm," = ",res$weighting,")") ))
+                                    if(dim(fileForMeasure)[1] > 2) {
+                                      res <- pmr::ahp(dset = matrix_basedMeasurement(as.numeric(fileForMeasure[, c(nm)])), sim_size = 500)
+                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",nm," = ",res$weighting,")") ))
+                                    } else {
+                                      res <- myEigenValue(matrix_basedMeasurement(as.numeric(fileForMeasure[, c(nm)])))
+                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",nm," = ",res,")") ))
+                                   }
                                   }
                                 } else {
                                   return(NULL)
@@ -324,7 +333,7 @@ function(input, output) {
                       }
                     } else if ( input$typeOfMeasurement == "Based measurements" ) {
                     # XXX TODO XXX
-                    #print(eigenMatrix)
+                    #print(eigenFrame)
                     }'), file = matrixScript, append = TRUE)
         }
         ## Script use
@@ -415,8 +424,9 @@ function(input, output) {
   # output
   #####
   output$plothist <- renderPlot({
-    if( !is.null(eigenMatrix) )  {
-      altRanked <- topsis::topsis(decision = as.matrix(eigenMatrix), weights = NULL, impacts = NULL)
+    if( !is.null(eigenFrame) )  {
+      eigenMatrix <- as.matrix( subset( eigenFrame, select = -c(Au_vu_de)))
+      altRanked <- topsis::topsis(decision = eigenMatrix, weights = rep(1/ncol(eigenMatrix), ncol(eigenMatrix)),  impacts = rep("+",ncol(eigenMatrix)))
       print(altRanked$score)
       print(altRanked$rank)
       criteria <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
