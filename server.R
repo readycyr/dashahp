@@ -193,6 +193,7 @@ function(input, output) {
       numberLevel <- names(table(reactValues$treeData$depth))
       write(paste0('
                   intMatx <- NULL
+                  dataByMeasure <- NULL
                   matrixRepresentation <- c()
                   vectorRepresentation <- c()'), file = matrixScript)
             
@@ -236,26 +237,18 @@ function(input, output) {
                               }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                              } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                                fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
-                                eigenFrame <<- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                dataByMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
+                                intMatx <- list()
                                 if ( input$treeLevelChoice > 2) {
                                   if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
-                                    if(dim(fileForMeasure)[1] > 2) {
-                                      res <- pmr::ahp(dset = matrix_basedMeasurement(as.numeric(fileForMeasure[, as.character(input$subsetTreeChoice)])), 
-                                      sim_size = 500)
-                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",input$subsetTreeChoice," = ",res$weighting,")") ))
-                                    } else {
-                                      res <- myEigenValue(matrix_basedMeasurement(as.numeric(fileForMeasure[,as.character(input$subsetTreeChoice)])))
-                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",input$subsetTreeChoice," = ",res,")") ))
+                                    for(nm in as.character(input$subsetTreeChoice)) {
+                                      intMatx[[paste0(nm)]] <- matrix_basedMeasurement( as.numeric(dataByMeasure[,c(nm)]) )
                                     }
                                   } else {
                                     return(NULL)
-                                  }
-                                } else if ( input$treeLevelChoice == 2) {
-                                  res <- pmr::ahp(dset = matrix_basedMeasurement(as.numeric(fileForMeasure[, c("root")])), sim_size = 500)
-                                  eigenFrame <- cbind(eigenFrame, root = res$weighting)
+                                  }                                  
                                 } else {
-                                  return(NULL)
+                                  intMatx[["root"]] <- matrix_basedMeasurement( as.numeric(dataByMeasure[, c("root")]) )
                                 }
                              }
                              }
@@ -293,33 +286,29 @@ function(input, output) {
                             }
                               matrixRepresentation <- c(matrixRepresentation, " \\\\end{matrix} $$ ")
                           } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                                fileForMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
-                                eigenFrame <<- data.frame("Au_vu_de"= as.character(fileForMeasure[, c("Au_vu_de")]))
+                                dataByMeasure <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
+                                intMatx <- list()
                                 if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
-                                  for(nm in input$subsetTreeChoice) {
-                                    if(dim(fileForMeasure)[1] > 2) {
-                                      res <- pmr::ahp(dset = matrix_basedMeasurement(as.numeric(fileForMeasure[, c(nm)])), sim_size = 500)
-                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",nm," = ",res$weighting,")") ))
-                                    } else {
-                                      res <- myEigenValue(matrix_basedMeasurement(as.numeric(fileForMeasure[, c(nm)])))
-                                      eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",nm," = ",res,")") ))
-                                   }
+                                  for(nm in as.character(input$subsetTreeChoice)) {
+                                    intMatx[[paste0(nm)]] <- matrix_basedMeasurement( as.numeric(dataByMeasure[,c(nm)]) )
                                   }
                                 } else {
                                   return(NULL)
-                                }
+                                } 
                           }
                         }'), file = matrixScript, append = TRUE)
             write(paste0('
                     if ( input$typeOfMeasurement == "Based preferences" ) {
                         vMat <- myEigenValue(intMatx)
                         vMatSum <- sum(vMat)
+#valuesTree[[paste0("weight_level_",input$treeLevelChoice)]] <<- (vMat/vMatSum)
                         vectorRepresentation <- c(vectorRepresentation, " $$ \\\\Longrightarrow ")
                         vectorRepresentation <- c(vectorRepresentation, "  \\\\begin{bmatrix} ")
                         vectorRepresentation <- c(vectorRepresentation, paste0( specify_digits((vMat/vMatSum), 3)," \\\\\\\\ "))
                         vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\hline", sum(vMat/vMatSum)," \\\\\\\\ ")) 
                       if( dim(intMatx)[1] > 2 ) {
                         ahppmr <- pmr::ahp(dset = intMatx, sim_size = 500)
+#valuesTree[[paste0("weight_level_",input$treeLevelChoice)]] <<- ahppmr$weighting
                         vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} or \\\\begin{bmatrix} ")
                         vectorRepresentation <- c(vectorRepresentation, paste0( specify_digits((ahppmr$weighting), 3)," \\\\\\\\ "))
                         vectorRepresentation <- c(vectorRepresentation, paste0(" \\\\hline", sum(ahppmr$weighting)," \\\\\\\\ ")) 
@@ -332,9 +321,38 @@ function(input, output) {
                         vectorRepresentation <- c(vectorRepresentation, " \\\\end{bmatrix} \\\\\\\\ $$ ")
                       }
                     } else if ( input$typeOfMeasurement == "Based measurements" ) {
-                    # XXX TODO XXX
-                    #print(eigenFrame)
-                    }'), file = matrixScript, append = TRUE)
+
+                      eigenFrame <<- data.frame("Au_vu_de"= as.character(dataByMeasure[, c("Au_vu_de")]))
+                      if ( input$treeLevelChoice > 2) {
+                        if ( length(input$subsetTreeChoice) != 0 && input$subsetTreeChoice != 0) {
+                                for(nm in as.character(input$subsetTreeChoice)) {
+                                  if(dim(intMatx[[paste0(nm)]])[1] > 2) {
+                                    res <- pmr::ahp(dset = intMatx[[paste0(nm)]] , sim_size = 500)
+                                    eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",nm," = ",res$weighting,")") ))
+                                  } else {
+                                    res <- myEigenValue(intMatx[[paste0(nm)]])
+                                    eigenFrame <<- eval(parse(text= paste0("cbind(eigenFrame,",nm," = ",(res/sum(res)),")") ))
+                                  }
+#valuesTree[[paste0("weight_level_",nm)]] <<- res$weighting
+                                }
+                        } else {
+                            return(NULL)
+                        }                                  
+                      } else if ( input$treeLevelChoice == 2) {
+                            res <- pmr::ahp(dset = intMatx[["root"]], sim_size = 500)
+                            eigenFrame <- cbind(eigenFrame, root = res$weighting)
+#valuesTree[[paste0("weight_level_","root")]] <<- res$weighting
+                      } else {
+                          return(NULL)
+                      }
+
+print(eigenFrame)
+                    }
+#ln <- na.omit( reactValues$treeData[reactValues$treeData$parent %in% input$subsetTreeChoice, c("name")] )
+#for(nm in ln) {
+#  reactValues$treeData[ reactValues$treeData$name == ln, c("score")] <- $weighting[]
+#}                         
+                         '), file = matrixScript, append = TRUE)
         }
         ## Script use
         if (input$visibleMTX && (length(input$treeLevelChoice) != 0)) {
@@ -425,15 +443,20 @@ function(input, output) {
   #####
   output$plothist <- renderPlot({
     if( !is.null(eigenFrame) )  {
+      #valuesTree[["weight_frame"]] <- data.frame()
+      #valuesTree[[paste0("weight_level",input$treeLevelChoice)]]
+      wg <- valuesTree[[paste0("weight_level",3)]]
+      
       eigenMatrix <- as.matrix( subset( eigenFrame, select = -c(Au_vu_de)))
-      altRanked <- topsis::topsis(decision = eigenMatrix, weights = rep(1/ncol(eigenMatrix), ncol(eigenMatrix)),  impacts = rep("+",ncol(eigenMatrix)))
+      altRanked <- topsis::topsis(decision = eigenMatrix, 
+                                  weights = c(wg[1]),  
+                                  impacts = rep("+",ncol(eigenMatrix)))
       print(altRanked$score)
       print(altRanked$rank)
       criteria <- valuesTree[[paste0("file_level",input$treeLevelChoice)]]
       
-      barplot( altRanked$score, main = "Site Distribution", horiz = FALSE, 
-               names.arg = as.character(criteria[, c("Au_vu_de")]), cex.names = 1, axis.lty = 1, las = 2
-      )
+      barplot(altRanked$score, main = "Site Distribution", horiz = FALSE, 
+               names.arg = as.character(criteria[, c("Au_vu_de")]), cex.names = 1, axis.lty = 1, las = 2)
       #lines(thesiteX, c(0, thesiteY), col = "red",lwd = 5)      
     }
   })
